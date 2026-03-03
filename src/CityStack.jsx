@@ -5,84 +5,13 @@ const SUPABASE_URL = "https://uvjwvalaqpwljbxmlvn.supabase.co";
 const SUPABASE_KEY = "sb_publishable_mPfF9lIS9JJyukbFnsVW5g_tt0lz0dl";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const CITY_PHOTOS = {
-  "New York": "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=600&q=80",
-  "Los Angeles": "https://images.unsplash.com/photo-1534190760961-74e8c1c5c3da?w=600&q=80",
-  "Chicago": "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=600&q=80",
-  "Houston": "https://images.unsplash.com/photo-1449034446853-66c86144b0ad?w=600&q=80",
-  "Phoenix": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80",
-  "Philadelphia": "https://images.unsplash.com/photo-1601332069835-6cf9b6e60b4d?w=600&q=80",
-  "San Diego": "https://images.unsplash.com/photo-1516912481808-3406841bd33c?w=600&q=80",
-  "Dallas": "https://images.unsplash.com/photo-1545194445-dddb8f4487c6?w=600&q=80",
-  "Austin": "https://images.unsplash.com/photo-1531218150217-54595bc2b934?w=600&q=80",
-  "Seattle": "https://images.unsplash.com/photo-1502175353174-a7a70e73b362?w=600&q=80",
-  "Denver": "https://images.unsplash.com/photo-1546156929-a4c0ac411f47?w=600&q=80",
-  "Nashville": "https://images.unsplash.com/photo-1545419913-775e3e82a0b2?w=600&q=80",
-  "Boston": "https://images.unsplash.com/photo-1501979376754-f529e2bace3d?w=600&q=80",
-  "Las Vegas": "https://images.unsplash.com/photo-1605833556294-ea5c7a74f57d?w=600&q=80",
-  "Portland": "https://images.unsplash.com/photo-1598970434795-0c54fe7c0648?w=600&q=80",
-  "Memphis": "https://images.unsplash.com/photo-1570197571499-166b36435e9f?w=600&q=80",
-  "Atlanta": "https://images.unsplash.com/photo-1575917649705-5b59aaa12e6b?w=600&q=80",
-  "Minneapolis": "https://images.unsplash.com/photo-1569388037243-dfa034f93e99?w=600&q=80",
-  "New Orleans": "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=600&q=80",
-  "Tampa": "https://images.unsplash.com/photo-1580137189272-c9379f8864fd?w=600&q=80",
-  "Washington": "https://images.unsplash.com/photo-1501466044931-62695aada8e9?w=600&q=80",
-  "San Francisco": "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=600&q=80",
-  "Orlando": "https://images.unsplash.com/photo-1575931953324-df3ef4eb34de?w=600&q=80",
-  "Sacramento": "https://images.unsplash.com/photo-1449034446853-66c86144b0ad?w=600&q=80",
-  "Pittsburgh": "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=600&q=80",
-  "Honolulu": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&q=80",
-  "Salt Lake City": "https://images.unsplash.com/photo-1486325212027-8081e485255e?w=600&q=80",
-  "Raleigh": "https://images.unsplash.com/photo-1575917649705-5b59aaa12e6b?w=600&q=80",
-  "Richmond": "https://images.unsplash.com/photo-1575931953324-df3ef4eb34de?w=600&q=80",
-  "Louisville": "https://images.unsplash.com/photo-1570197571499-166b36435e9f?w=600&q=80",
-  "Milwaukee": "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=600&q=80",
-  "Kansas City": "https://images.unsplash.com/photo-1546156929-a4c0ac411f47?w=600&q=80",
-  "Reno": "https://images.unsplash.com/photo-1605833556294-ea5c7a74f57d?w=600&q=80",
-  "Baton Rouge": "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=600&q=80",
-  "Tokyo": "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=600&q=80",
-  "Delhi": "https://images.unsplash.com/photo-1587474260584-136574528ed5?w=600&q=80",
-  "Shanghai": "https://images.unsplash.com/photo-1474181487882-5abf3f0ba6c2?w=600&q=80",
-  "Sao Paulo": "https://images.unsplash.com/photo-1559333086-b0a56225a93c?w=600&q=80",
-  "Mexico City": "https://images.unsplash.com/photo-1585464231875-d9ef1f5ad396?w=600&q=80",
-  "Cairo": "https://images.unsplash.com/photo-1539768942893-daf53e448371?w=600&q=80",
-  "Mumbai": "https://images.unsplash.com/photo-1595658658481-d53d3f999875?w=600&q=80",
-  "Beijing": "https://images.unsplash.com/photo-1508804052814-cd3ba865a116?w=600&q=80",
-  "London": "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=600&q=80",
-  "Paris": "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=600&q=80",
-  "Moscow": "https://images.unsplash.com/photo-1513326738677-b964603b136d?w=600&q=80",
-  "Istanbul": "https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?w=600&q=80",
-  "Bangkok": "https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=600&q=80",
-  "Seoul": "https://images.unsplash.com/photo-1538485399081-7191377e8241?w=600&q=80",
-  "Lagos": "https://images.unsplash.com/photo-1555990538-c4e389c3d2ec?w=600&q=80",
-  "Buenos Aires": "https://images.unsplash.com/photo-1589909202802-8f4aadce1849?w=600&q=80",
-  "Rio de Janeiro": "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?w=600&q=80",
-  "Lima": "https://images.unsplash.com/photo-1531968455001-5c5272a41129?w=600&q=80",
-  "Singapore": "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=600&q=80",
-  "Dubai": "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=600&q=80",
-  "Sydney": "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=600&q=80",
-  "Melbourne": "https://images.unsplash.com/photo-1514395462725-fb4566210144?w=600&q=80",
-  "Toronto": "https://images.unsplash.com/photo-1517090504586-fde19ea6066f?w=600&q=80",
-  "Berlin": "https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=600&q=80",
-  "Madrid": "https://images.unsplash.com/photo-1539037116277-4db20889f2d4?w=600&q=80",
-  "Rome": "https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=600&q=80",
-  "Barcelona": "https://images.unsplash.com/photo-1583422409516-2895a77efded?w=600&q=80",
-  "Vienna": "https://images.unsplash.com/photo-1516550893885-f5e7c0b0dc2d?w=600&q=80",
-  "Amsterdam": "https://images.unsplash.com/photo-1534351590666-13e3e96b5017?w=600&q=80",
-  "Prague": "https://images.unsplash.com/photo-1541849546-216549ae216d?w=600&q=80",
-  "Budapest": "https://images.unsplash.com/photo-1551867633-194f125bddfa?w=600&q=80",
-  "Lisbon": "https://images.unsplash.com/photo-1548707309-dcebeab9ea9b?w=600&q=80",
-  "Dublin": "https://images.unsplash.com/photo-1549918864-48ac978761a4?w=600&q=80",
-  "Stockholm": "https://images.unsplash.com/photo-1509356843151-3e7d96241e11?w=600&q=80",
-  "Nairobi": "https://images.unsplash.com/photo-1518491247-b0c2d9cb0e1b?w=600&q=80",
-  "Cape Town": "https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=600&q=80",
-  "Havana": "https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=600&q=80",
-  "Reykjavik": "https://images.unsplash.com/photo-1531168386169-0b6fb7a4b3f4?w=600&q=80",
-};
 
-function getPhoto(name) {
-  return CITY_PHOTOS[name] || "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=600&q=80";
+// Unsplash search by city name — always returns a real photo of that city
+function getPhoto(cityName) {
+  const query = encodeURIComponent(cityName + " city skyline");
+  return `https://source.unsplash.com/800x600/?${query}`;
 }
+
 
 const CITIES_100K = [
   { name: "New York", state: "NY", pop: 8336817 },
@@ -222,7 +151,18 @@ const STATE_CAPITALS = [
 ];
 
 const SMALL_TOWNS = [
-  { name: "Limon", state: "CO", pop: 1880 },
+  // Tennessee
+  { name: "Surgoinsville", state: "TN", pop: 1921, special: true },
+  { name: "Cookeville", state: "TN", pop: 35699 },
+  { name: "Greeneville", state: "TN", pop: 15459 },
+  { name: "Elizabethton", state: "TN", pop: 13372 },
+  { name: "Rogersville", state: "TN", pop: 4420 },
+  { name: "Erwin", state: "TN", pop: 6097 },
+  { name: "Sweetwater", state: "TN", pop: 5765 },
+  { name: "Dayton", state: "TN", pop: 7191 },
+  { name: "Waverly", state: "TN", pop: 4275 },
+  { name: "Lexington", state: "TN", pop: 7652 },
+  // Funny/quirky names
   { name: "Truth or Consequences", state: "NM", pop: 5765 },
   { name: "Valentine", state: "TX", pop: 134 },
   { name: "Boring", state: "OR", pop: 8067 },
@@ -234,41 +174,119 @@ const SMALL_TOWNS = [
   { name: "Why", state: "AZ", pop: 116 },
   { name: "Halfway", state: "OR", pop: 288 },
   { name: "Happy", state: "TX", pop: 592 },
-  { name: "Hope", state: "AR", pop: 9452 },
   { name: "Zigzag", state: "OR", pop: 599 },
   { name: "Climax", state: "MI", pop: 6249 },
   { name: "Uncertain", state: "TX", pop: 94 },
   { name: "Embarrass", state: "MN", pop: 671 },
-  { name: "Gallup", state: "NM", pop: 21678 },
-  { name: "Laramie", state: "WY", pop: 32158 },
-  { name: "Dodge City", state: "KS", pop: 27340 },
+  { name: "Intercourse", state: "PA", pop: 1275 },
+  { name: "Hooker", state: "OK", pop: 1769 },
+  { name: "Dinosaur", state: "CO", pop: 319 },
+  { name: "Nimrod", state: "MN", pop: 54 },
+  { name: "Santa Claus", state: "IN", pop: 2481 },
+  { name: "Bat Cave", state: "NC", pop: 289 },
+  { name: "Lick Fork", state: "VA", pop: 342 },
+  { name: "Nothing", state: "AZ", pop: 4 },
+  { name: "Whynot", state: "NC", pop: 921 },
+  { name: "Okay", state: "OK", pop: 627 },
+  { name: "Ding Dong", state: "TX", pop: 22 },
+  { name: "Frostproof", state: "FL", pop: 3165 },
+  { name: "Oatmeal", state: "TX", pop: 255 },
+  { name: "Cheesequake", state: "NJ", pop: 6500 },
+  { name: "Accident", state: "MD", pop: 325 },
+  { name: "Defeated", state: "TN", pop: 123 },
+  // Historic/Western
   { name: "Deadwood", state: "SD", pop: 1270 },
   { name: "Tombstone", state: "AZ", pop: 1579 },
+  { name: "Dodge City", state: "KS", pop: 27340 },
   { name: "Gettysburg", state: "PA", pop: 7620 },
-  { name: "Marathon", state: "FL", pop: 8305 },
-  { name: "Calais", state: "ME", pop: 3052 },
-  { name: "Kodiak", state: "AK", pop: 5937 },
+  { name: "Cody", state: "WY", pop: 9985 },
+  { name: "Laramie", state: "WY", pop: 32158 },
+  { name: "Lander", state: "WY", pop: 7487 },
+  { name: "Thermopolis", state: "WY", pop: 2643 },
+  { name: "Marfa", state: "TX", pop: 1728 },
+  { name: "Alpine", state: "TX", pop: 5905 },
+  { name: "Fort Stockton", state: "TX", pop: 8283 },
+  { name: "Presidio", state: "TX", pop: 3978 },
+  { name: "Del Rio", state: "TX", pop: 35665 },
   { name: "Moab", state: "UT", pop: 5268 },
   { name: "Kanab", state: "UT", pop: 4803 },
-  { name: "Lander", state: "WY", pop: 7487 },
-  { name: "Cody", state: "WY", pop: 9985 },
-  { name: "Havre", state: "MT", pop: 9510 },
-  { name: "Devils Lake", state: "ND", pop: 7270 },
-  { name: "Huron", state: "SD", pop: 14263 },
-  { name: "Alliance", state: "NE", pop: 8148 },
-  { name: "Garden City", state: "KS", pop: 26658 },
-  { name: "Marfa", state: "TX", pop: 1728 },
-  { name: "Ruidoso", state: "NM", pop: 7971 },
-  { name: "Silver City", state: "NM", pop: 9990 },
-  { name: "Show Low", state: "AZ", pop: 11361 },
+  { name: "Page", state: "AZ", pop: 7247 },
   { name: "Winslow", state: "AZ", pop: 9009 },
+  { name: "Show Low", state: "AZ", pop: 11361 },
+  { name: "Silver City", state: "NM", pop: 9990 },
+  { name: "Ruidoso", state: "NM", pop: 7971 },
+  { name: "Gallup", state: "NM", pop: 21678 },
+  // Alaska/Island/Remote
+  { name: "Kodiak", state: "AK", pop: 5937 },
+  { name: "Sitka", state: "AK", pop: 8493 },
+  { name: "Nome", state: "AK", pop: 3699 },
+  { name: "Barrow", state: "AK", pop: 4581 },
+  { name: "Ketchikan", state: "AK", pop: 8050 },
+  { name: "Unalaska", state: "AK", pop: 4376 },
+  { name: "Calais", state: "ME", pop: 3052 },
+  { name: "Eastport", state: "ME", pop: 1331 },
+  { name: "Marathon", state: "FL", pop: 8305 },
+  { name: "Islamorada", state: "FL", pop: 6370 },
+  // Plains/Midwest small
+  { name: "Limon", state: "CO", pop: 1880 },
+  { name: "Havre", state: "MT", pop: 9510 },
+  { name: "Miles City", state: "MT", pop: 8313 },
+  { name: "Plentywood", state: "MT", pop: 1484 },
+  { name: "Wolf Point", state: "MT", pop: 2661 },
+  { name: "Devils Lake", state: "ND", pop: 7270 },
+  { name: "Williston", state: "ND", pop: 29578 },
+  { name: "Dickinson", state: "ND", pop: 23091 },
+  { name: "Huron", state: "SD", pop: 14263 },
+  { name: "Mitchell", state: "SD", pop: 15254 },
+  { name: "Winner", state: "SD", pop: 2897 },
+  { name: "Alliance", state: "NE", pop: 8148 },
+  { name: "Scottsbluff", state: "NE", pop: 14732 },
+  { name: "McCook", state: "NE", pop: 7491 },
+  { name: "Garden City", state: "KS", pop: 26658 },
+  { name: "Liberal", state: "KS", pop: 19825 },
+  { name: "Colby", state: "KS", pop: 5387 },
+  { name: "Goodland", state: "KS", pop: 4489 },
+  // Nevada/West
   { name: "Elko", state: "NV", pop: 20332 },
   { name: "Winnemucca", state: "NV", pop: 7731 },
   { name: "Ely", state: "NV", pop: 3941 },
+  { name: "Fallon", state: "NV", pop: 8606 },
+  { name: "Yerington", state: "NV", pop: 3081 },
+  { name: "Tonopah", state: "NV", pop: 2478 },
   { name: "Bishop", state: "CA", pop: 3879 },
+  { name: "Mammoth Lakes", state: "CA", pop: 8272 },
+  { name: "Weed", state: "CA", pop: 2967 },
+  { name: "Alturas", state: "CA", pop: 2827 },
+  { name: "Fort Bragg", state: "CA", pop: 7464 },
+  // Oregon/Washington
   { name: "Astoria", state: "OR", pop: 9611 },
+  { name: "Klamath Falls", state: "OR", pop: 21813 },
   { name: "Burns", state: "OR", pop: 2711 },
+  { name: "Lakeview", state: "OR", pop: 2394 },
+  { name: "Halfway", state: "OR", pop: 288 },
+  { name: "Boring", state: "OR", pop: 8067 },
   { name: "Winthrop", state: "WA", pop: 442 },
+  { name: "Colville", state: "WA", pop: 4673 },
+  { name: "Republic", state: "WA", pop: 1073 },
+  // Appalachian/Southeast small
+  { name: "Grundy", state: "VA", pop: 1057 },
+  { name: "Pocahontas", state: "VA", pop: 328 },
+  { name: "Richlands", state: "VA", pop: 5500 },
+  { name: "Harlan", state: "KY", pop: 1671 },
+  { name: "Hazard", state: "KY", pop: 4456 },
+  { name: "Pikeville", state: "KY", pop: 6903 },
+  { name: "Paintsville", state: "KY", pop: 3894 },
+  { name: "Prestonsburg", state: "KY", pop: 3187 },
+  { name: "Williamson", state: "WV", pop: 2884 },
+  { name: "Mullens", state: "WV", pop: 1492 },
+  { name: "Welch", state: "WV", pop: 1994 },
+  { name: "Bryson City", state: "NC", pop: 1622 },
+  { name: "Sylva", state: "NC", pop: 2588 },
+  { name: "Murphy", state: "NC", pop: 1739 },
+  { name: "Clayton", state: "GA", pop: 2277 },
+  { name: "Blue Ridge", state: "GA", pop: 1298 },
+  { name: "Helen", state: "GA", pop: 571 },
+  { name: "Dahlonega", state: "GA", pop: 6751 },
 ];
 
 const WORLD_CITIES = [
@@ -346,11 +364,23 @@ function getDataset(mode) {
   if (mode === "world") return WORLD_CITIES;
   return CITIES_100K;
 }
+function weightedPick(pool) {
+  // Surgoinsville gets ~2% extra weight as a special Easter egg
+  const weights = pool.map(c => c.special ? 3 : 1);
+  const total = weights.reduce((a, b) => a + b, 0);
+  let rand = Math.random() * total;
+  for (let i = 0; i < pool.length; i++) {
+    rand -= weights[i];
+    if (rand <= 0) return pool[i];
+  }
+  return pool[pool.length - 1];
+}
+
 function pickTwo(pool, lastPair) {
   let attempts = 0, a, b;
   do {
-    a = pool[Math.floor(Math.random() * pool.length)];
-    b = pool[Math.floor(Math.random() * pool.length)];
+    a = weightedPick(pool);
+    b = weightedPick(pool);
     attempts++;
   } while ((a === b || a.pop === b.pop || (lastPair && (a === lastPair[0] || a === lastPair[1] || b === lastPair[0] || b === lastPair[1]))) && attempts < 50);
   return [a, b];
