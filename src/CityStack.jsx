@@ -1,221 +1,422 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = "https://uvjwvalaqpwljbxmlvn.supabase.co";
 const SUPABASE_KEY = "sb_publishable_mPfF9lIS9JJyukbFnsVW5g_tt0lz0dl";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// ─── RELIABLE IMAGE SYSTEM ─────────────────────────────────────────
+// Uses Wikipedia REST API which is designed for embedding thumbnails.
+// Format: https://en.wikipedia.org/api/rest_v1/page/summary/{title} returns a thumbnail URL
+// We use a direct approach: Wikipedia page image endpoint with known working article titles.
 
-// Wikimedia Commons — verified real photos of each place
-const PHOTO_MAP = {
-  // US Major Cities
-  "New York": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Southwest_corner_of_Central_Park%2C_looking_east%2C_NYC.jpg/800px-Southwest_corner_of_Central_Park%2C_looking_east%2C_NYC.jpg",
-  "Los Angeles": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Los_Angeles_Skyscraper_Cluster.jpg/800px-Los_Angeles_Skyscraper_Cluster.jpg",
-  "Chicago": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d9/Chicago_night_crowd.jpg/800px-Chicago_night_crowd.jpg",
-  "Houston": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Houston_skyline_daytime.jpg/800px-Houston_skyline_daytime.jpg",
-  "Phoenix": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ed/Phoenix_az_downtown_skyline_2008.jpg/800px-Phoenix_az_downtown_skyline_2008.jpg",
-  "Philadelphia": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Philadelphia_skyline_from_south_street_bridge_september_2019.jpg/800px-Philadelphia_skyline_from_south_street_bridge_september_2019.jpg",
-  "San Antonio": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/San_Antonio_River_Walk_modified.jpg/800px-San_Antonio_River_Walk_modified.jpg",
-  "San Diego": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/San_Diego_Skyline_at_Dusk_-_Jan_2014.jpg/800px-San_Diego_Skyline_at_Dusk_-_Jan_2014.jpg",
-  "Dallas": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Dallas_skyline_at_night_2013.jpg/800px-Dallas_skyline_at_night_2013.jpg",
-  "San Jose": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/SanJoseSkyline2019.jpg/800px-SanJoseSkyline2019.jpg",
-  "Austin": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Austin_Evening.jpg/800px-Austin_Evening.jpg",
-  "Jacksonville": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Downtown_Jacksonville.jpg/800px-Downtown_Jacksonville.jpg",
-  "Fort Worth": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Fortworth_skyline_2014.jpg/800px-Fortworth_skyline_2014.jpg",
-  "Columbus": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Columbus_Ohio_downtown_skyline.jpg/800px-Columbus_Ohio_downtown_skyline.jpg",
-  "Charlotte": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Charlotte_skyline_2012.jpg/800px-Charlotte_skyline_2012.jpg",
-  "Indianapolis": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Indianapolis_Skyline_%28Night%29.jpg/800px-Indianapolis_Skyline_%28Night%29.jpg",
-  "San Francisco": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/GoldenGateBridge-001.jpg/800px-GoldenGateBridge-001.jpg",
-  "Seattle": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Space_Needle002.jpg/800px-Space_Needle002.jpg",
-  "Denver": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Denver_skyline_at_dusk.jpg/800px-Denver_skyline_at_dusk.jpg",
-  "Nashville": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Nashville_Skyline_at_Night.jpg/800px-Nashville_Skyline_at_Night.jpg",
-  "Oklahoma City": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/Oklahoma_City_Skyline.jpg/800px-Oklahoma_City_Skyline.jpg",
-  "El Paso": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/ElPasoTexasSkyline.jpg/800px-ElPasoTexasSkyline.jpg",
-  "Washington": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Washington_D.C._skyline_at_dusk_from_Arlington_%28edit%29.jpg/800px-Washington_D.C._skyline_at_dusk_from_Arlington_%28edit%29.jpg",
-  "Boston": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Boston_-_panoramio_%2823%29.jpg/800px-Boston_-_panoramio_%2823%29.jpg",
-  "Memphis": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/MemphisSkyline.jpg/800px-MemphisSkyline.jpg",
-  "Louisville": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Louisville_Ky_skyline.jpg/800px-Louisville_Ky_skyline.jpg",
-  "Portland": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Portland_and_Mt._Hood.jpg/800px-Portland_and_Mt._Hood.jpg",
-  "Las Vegas": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Las_Vegas_at_night_1.jpg/800px-Las_Vegas_at_night_1.jpg",
-  "Milwaukee": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ee/MilwaukeeSkylineWI.jpg/800px-MilwaukeeSkylineWI.jpg",
-  "Albuquerque": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/AlbuquerqueSkylineHotAirBalloons.jpg/800px-AlbuquerqueSkylineHotAirBalloons.jpg",
-  "Tucson": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Tucson_az_skyline.jpg/800px-Tucson_az_skyline.jpg",
-  "Fresno": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Fresno_skyline_at_dusk.jpg/800px-Fresno_skyline_at_dusk.jpg",
-  "Sacramento": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/Sacramento_skyline_from_across_the_river.jpg/800px-Sacramento_skyline_from_across_the_river.jpg",
-  "Kansas City": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Kansas_City%2C_Missouri_skyline.jpg/800px-Kansas_City%2C_Missouri_skyline.jpg",
-  "Mesa": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Mesa_Arizona_USA.jpg/800px-Mesa_Arizona_USA.jpg",
-  "Atlanta": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Atlanta_Skyline_from_Buckhead.jpg/800px-Atlanta_Skyline_from_Buckhead.jpg",
-  "Omaha": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Omaha_nebraska_downtown_aerial_2011.jpg/800px-Omaha_nebraska_downtown_aerial_2011.jpg",
-  "Colorado Springs": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Colorado_Springs_downtown.jpg/800px-Colorado_Springs_downtown.jpg",
-  "Raleigh": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Raleigh_NC_skyline.jpg/800px-Raleigh_NC_skyline.jpg",
-  "Long Beach": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Long_Beach_CA_night_aerial.jpg/800px-Long_Beach_CA_night_aerial.jpg",
-  "Virginia Beach": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Virginia_Beach_Boardwalk.jpg/800px-Virginia_Beach_Boardwalk.jpg",
-  "Minneapolis": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Minneapolis_skyline_from_11th_street_-_crop_and_lighten.jpg/800px-Minneapolis_skyline_from_11th_street_-_crop_and_lighten.jpg",
-  "Tampa": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Tampa_skyline.jpg/800px-Tampa_skyline.jpg",
-  "New Orleans": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/New_Orleans_CBD_skyline_Jan_2012.jpg/800px-New_Orleans_CBD_skyline_Jan_2012.jpg",
-  "Arlington": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Dallas_skyline_at_night_2013.jpg/800px-Dallas_skyline_at_night_2013.jpg",
-  "Honolulu": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Honolulu_waterfront.jpg/800px-Honolulu_waterfront.jpg",
-  "Aurora": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Denver_skyline_at_dusk.jpg/800px-Denver_skyline_at_dusk.jpg",
-  "Corpus Christi": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c0/Corpus_Christi_skyline.jpg/800px-Corpus_Christi_skyline.jpg",
-  "Riverside": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Riverside_California_skyline.jpg/800px-Riverside_California_skyline.jpg",
-  "Lexington": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/06/Lexington_Kentucky_downtown.jpg/800px-Lexington_Kentucky_downtown.jpg",
-  "St. Louis": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/St_Louis_night_expblend_cropped.jpg/800px-St_Louis_night_expblend_cropped.jpg",
-  "Pittsburgh": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Pittsburgh_skyline_from_West_End_Overlook_2015.jpg/800px-Pittsburgh_skyline_from_West_End_Overlook_2015.jpg",
-  "Cincinnati": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Cincinnati-ohio-skyline.jpg/800px-Cincinnati-ohio-skyline.jpg",
-  "St. Paul": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/06/Saint_Paul_Minnesota_Skyline.jpg/800px-Saint_Paul_Minnesota_Skyline.jpg",
-  "Henderson": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Las_Vegas_at_night_1.jpg/800px-Las_Vegas_at_night_1.jpg",
-  "Orlando": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Orlando_Florida_Skyline.jpg/800px-Orlando_Florida_Skyline.jpg",
-  "Madison": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Madison_Wisconsin_skyline.jpg/800px-Madison_Wisconsin_skyline.jpg",
-  "Durham": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Durham_North_Carolina_skyline.jpg/800px-Durham_North_Carolina_skyline.jpg",
-  "Reno": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Reno_skyline.jpg/800px-Reno_skyline.jpg",
-  "Baton Rouge": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/BatonRouge_Skyline.jpg/800px-BatonRouge_Skyline.jpg",
-  "Irvine": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Los_Angeles_Skyscraper_Cluster.jpg/800px-Los_Angeles_Skyscraper_Cluster.jpg",
-  "Scottsdale": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ed/Phoenix_az_downtown_skyline_2008.jpg/800px-Phoenix_az_downtown_skyline_2008.jpg",
-  "Fremont": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/SanJoseSkyline2019.jpg/800px-SanJoseSkyline2019.jpg",
-  "Gilbert": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ed/Phoenix_az_downtown_skyline_2008.jpg/800px-Phoenix_az_downtown_skyline_2008.jpg",
-  "Birmingham": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Birmingham_Alabama_skyline.jpg/800px-Birmingham_Alabama_skyline.jpg",
-  "Richmond": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Richmond_VA_skyline.jpg/800px-Richmond_VA_skyline.jpg",
-  "Spokane": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Spokane_Washington_skyline.jpg/800px-Spokane_Washington_skyline.jpg",
-  "Des Moines": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Des_Moines_Iowa_Skyline_by_night.jpg/800px-Des_Moines_Iowa_Skyline_by_night.jpg",
-  "Huntsville": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Huntsville_Alabama_skyline.jpg/800px-Huntsville_Alabama_skyline.jpg",
-  "Salt Lake City": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Salt_Lake_City_Utah_skyline_from_Ensign_Peak.jpg/800px-Salt_Lake_City_Utah_skyline_from_Ensign_Peak.jpg",
-  "Tallahassee": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/40/Tallahassee_florida_skyline.jpg/800px-Tallahassee_florida_skyline.jpg",
-  "Chattanooga": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Chattanooga-skyline.jpg/800px-Chattanooga-skyline.jpg",
-  "Fort Lauderdale": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Fort_Lauderdale_Downtown_Skyline.jpg/800px-Fort_Lauderdale_Downtown_Skyline.jpg",
-  "Cape Coral": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Tampa_skyline.jpg/800px-Tampa_skyline.jpg",
-  "Eugene": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Portland_and_Mt._Hood.jpg/800px-Portland_and_Mt._Hood.jpg",
-  "Vancouver": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Portland_and_Mt._Hood.jpg/800px-Portland_and_Mt._Hood.jpg",
-  "Sioux Falls": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Sioux_Falls_SD_skyline.jpg/800px-Sioux_Falls_SD_skyline.jpg",
-  "McKinney": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Dallas_skyline_at_night_2013.jpg/800px-Dallas_skyline_at_night_2013.jpg",
-  "Frisco": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Dallas_skyline_at_night_2013.jpg/800px-Dallas_skyline_at_night_2013.jpg",
-  // State Capitals
-  "Montgomery": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Montgomery_Alabama_skyline.jpg/800px-Montgomery_Alabama_skyline.jpg",
-  "Juneau": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Juneau_Alaska_aerial.jpg/800px-Juneau_Alaska_aerial.jpg",
-  "Little Rock": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Little_Rock_Arkansas_skyline.jpg/800px-Little_Rock_Arkansas_skyline.jpg",
-  "Hartford": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Hartford_Connecticut_skyline.jpg/800px-Hartford_Connecticut_skyline.jpg",
-  "Dover": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Delaware_State_Capitol.jpg/800px-Delaware_State_Capitol.jpg",
-  "Boise": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/Boise_Idaho_skyline.jpg/800px-Boise_Idaho_skyline.jpg",
-  "Springfield": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Springfield_Illinois_skyline.jpg/800px-Springfield_Illinois_skyline.jpg",
-  "Topeka": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Topeka_Kansas_skyline.jpg/800px-Topeka_Kansas_skyline.jpg",
-  "Frankfort": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Frankfort_Kentucky_skyline.jpg/800px-Frankfort_Kentucky_skyline.jpg",
-  "Augusta": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Augusta_Maine_skyline.jpg/800px-Augusta_Maine_skyline.jpg",
-  "Annapolis": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Annapolis_-_Maryland_State_House.jpg/800px-Annapolis_-_Maryland_State_House.jpg",
-  "Lansing": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Lansing_Michigan_skyline.jpg/800px-Lansing_Michigan_skyline.jpg",
-  "Jackson": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/76/Jackson_Mississippi_skyline.jpg/800px-Jackson_Mississippi_skyline.jpg",
-  "Jefferson City": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Jefferson_City_Missouri.jpg/800px-Jefferson_City_Missouri.jpg",
-  "Helena": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Helena_Montana_skyline.jpg/800px-Helena_Montana_skyline.jpg",
-  "Lincoln": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Lincoln_Nebraska_skyline.jpg/800px-Lincoln_Nebraska_skyline.jpg",
-  "Carson City": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Reno_skyline.jpg/800px-Reno_skyline.jpg",
-  "Concord": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Concord_New_Hampshire.jpg/800px-Concord_New_Hampshire.jpg",
-  "Trenton": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Trenton_New_Jersey_skyline.jpg/800px-Trenton_New_Jersey_skyline.jpg",
-  "Santa Fe": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Santa_Fe_New_Mexico.jpg/800px-Santa_Fe_New_Mexico.jpg",
-  "Albany": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Albany_New_York_skyline.jpg/800px-Albany_New_York_skyline.jpg",
-  "Bismarck": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Bismarck_North_Dakota_skyline.jpg/800px-Bismarck_North_Dakota_skyline.jpg",
-  "Salem": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/Salem_Oregon_skyline.jpg/800px-Salem_Oregon_skyline.jpg",
-  "Harrisburg": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Harrisburg_Pennsylvania_skyline.jpg/800px-Harrisburg_Pennsylvania_skyline.jpg",
-  "Providence": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Providence_Rhode_Island_skyline.jpg/800px-Providence_Rhode_Island_skyline.jpg",
-  "Columbia": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Columbia_South_Carolina_skyline.jpg/800px-Columbia_South_Carolina_skyline.jpg",
-  "Pierre": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/Pierre_South_Dakota.jpg/800px-Pierre_South_Dakota.jpg",
-  "Montpelier": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/Montpelier_Vermont.jpg/800px-Montpelier_Vermont.jpg",
-  "Olympia": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Olympia_Washington_Capitol.jpg/800px-Olympia_Washington_Capitol.jpg",
-  "Charleston": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Charleston_West_Virginia_skyline.jpg/800px-Charleston_West_Virginia_skyline.jpg",
-  "Cheyenne": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Cheyenne_Wyoming_skyline.jpg/800px-Cheyenne_Wyoming_skyline.jpg",
-  // World Cities
-  "Tokyo": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Skyscrapers_of_Shinjuku_2009_January.jpg/800px-Skyscrapers_of_Shinjuku_2009_January.jpg",
-  "Delhi": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/India_Gate_-_Panorama.jpg/800px-India_Gate_-_Panorama.jpg",
-  "Shanghai": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Shanghai_Skyline_2015.jpg/800px-Shanghai_Skyline_2015.jpg",
-  "Sao Paulo": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Sao_Paulo_Skyline.jpg/800px-Sao_Paulo_Skyline.jpg",
-  "Mexico City": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/Mexico_City_Reforma.jpg/800px-Mexico_City_Reforma.jpg",
-  "Cairo": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Cairo_skyline.jpg/800px-Cairo_skyline.jpg",
-  "Mumbai": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Mumbai_Skyline_at_Night.jpg/800px-Mumbai_Skyline_at_Night.jpg",
-  "Beijing": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Forbidden_City_Beijing_2014.jpg/800px-Forbidden_City_Beijing_2014.jpg",
-  "Osaka": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Osaka_Skyline_from_Tempozan_Giant_Ferris_Wheel_2013.jpg/800px-Osaka_Skyline_from_Tempozan_Giant_Ferris_Wheel_2013.jpg",
-  "Karachi": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Karachi_skyline.jpg/800px-Karachi_skyline.jpg",
-  "Istanbul": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Bosphorus_bridge_and_Bosphorus.jpg/800px-Bosphorus_bridge_and_Bosphorus.jpg",
-  "Lagos": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/Lagos_skyline.jpg/800px-Lagos_skyline.jpg",
-  "Buenos Aires": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Buenos_Aires_-_Microcentro.jpg/800px-Buenos_Aires_-_Microcentro.jpg",
-  "Kolkata": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Howrah_Bridge_at_night.jpg/800px-Howrah_Bridge_at_night.jpg",
-  "Manila": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Manila_skyline_at_night.jpg/800px-Manila_skyline_at_night.jpg",
-  "Rio de Janeiro": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Rio_de_Janeiro_-_Botafogo_e_Corcovado.jpg/800px-Rio_de_Janeiro_-_Botafogo_e_Corcovado.jpg",
-  "Guangzhou": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Guangzhou_skyline.jpg/800px-Guangzhou_skyline.jpg",
-  "Shenzhen": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Shenzhen_night_2007_Futian_District.jpg/800px-Shenzhen_night_2007_Futian_District.jpg",
-  "Lahore": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Lahore_skyline.jpg/800px-Lahore_skyline.jpg",
-  "Moscow": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Moscow_Red_Square.jpg/800px-Moscow_Red_Square.jpg",
-  "Paris": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/New_eiffel_tower.jpg/800px-New_eiffel_tower.jpg",
-  "London": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/London_Skyline_%28125508655%29.jpeg/800px-London_Skyline_%28125508655%29.jpeg",
-  "Bangkok": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/Bangkok_Skyscrapers.jpg/800px-Bangkok_Skyscrapers.jpg",
-  "Lima": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Lima_Miraflores.jpg/800px-Lima_Miraflores.jpg",
-  "Bangalore": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Bangalore_Skyline.jpg/800px-Bangalore_Skyline.jpg",
-  "Bogota": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Bogota_-_Candelaria.jpg/800px-Bogota_-_Candelaria.jpg",
-  "Jakarta": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Jakarta_Skyline.jpg/800px-Jakarta_Skyline.jpg",
-  "Tehran": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Tehran_from_Milad_Tower.jpg/800px-Tehran_from_Milad_Tower.jpg",
-  "Johannesburg": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Joburg.jpg/800px-Joburg.jpg",
-  "Baghdad": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Baghdad_Skyline.jpg/800px-Baghdad_Skyline.jpg",
-  "Santiago": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Santiago_del_nuevo_extremo.jpg/800px-Santiago_del_nuevo_extremo.jpg",
-  "Riyadh": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Riyadh_skyline.jpg/800px-Riyadh_skyline.jpg",
-  "Singapore": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Singapore_skyline_at_night.jpg/800px-Singapore_skyline_at_night.jpg",
-  "Dar es Salaam": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Dar_es_Salaam_skyline.jpg/800px-Dar_es_Salaam_skyline.jpg",
-  "Hanoi": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Hanoi_Skyline.jpg/800px-Hanoi_Skyline.jpg",
-  "Barcelona": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Barcelona_Sagrada_Familia.jpg/800px-Barcelona_Sagrada_Familia.jpg",
-  "Cape Town": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Cape_Town_-_South_Africa.jpg/800px-Cape_Town_-_South_Africa.jpg",
-  "Nairobi": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/NairobiSkyline.jpg/800px-NairobiSkyline.jpg",
-  "Accra": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/Accra_skyline.jpg/800px-Accra_skyline.jpg",
-  "Madrid": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Gran_Via_de_Madrid.jpg/800px-Gran_Via_de_Madrid.jpg",
-  "Berlin": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Berlin_-_Brandenburger_Tor.jpg/800px-Berlin_-_Brandenburger_Tor.jpg",
-  "Rome": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Colosseo_2020.jpg/800px-Colosseo_2020.jpg",
-  "Sydney": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Sydney_Opera_House_and_Harbour_Bridge_Dusk_%282%29_2019_photographed_by_Adam_J.W.C..jpg/800px-Sydney_Opera_House_and_Harbour_Bridge_Dusk_%282%29_2019_photographed_by_Adam_J.W.C..jpg",
-  "Melbourne": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Melbourne_CBD_from_Rialto.jpg/800px-Melbourne_CBD_from_Rialto.jpg",
-  "Toronto": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Toronto_-_ON_-_Toronto_Skyline2.jpg/800px-Toronto_-_ON_-_Toronto_Skyline2.jpg",
-  "Seoul": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Seoul_Namsan_Tower.jpg/800px-Seoul_Namsan_Tower.jpg",
-  "Dubai": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Dubai_Skyline_%282%29.jpg/800px-Dubai_Skyline_%282%29.jpg",
-  "Amman": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Amman_skyline.jpg/800px-Amman_skyline.jpg",
-  "Havana": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Havana_panorama.jpg/800px-Havana_panorama.jpg",
-  "Oslo": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Oslo_skyline.jpg/800px-Oslo_skyline.jpg",
-  "Stockholm": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Stockholm_-_Gamla_Stan.jpg/800px-Stockholm_-_Gamla_Stan.jpg",
-  "Amsterdam": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Amsterdam_-_Rijksmuseum.jpg/800px-Amsterdam_-_Rijksmuseum.jpg",
-  "Vienna": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Stephansdom_Wien_2016.jpg/800px-Stephansdom_Wien_2016.jpg",
-  "Warsaw": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Warsaw_Skyline_2019.jpg/800px-Warsaw_Skyline_2019.jpg",
-  "Budapest": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Budapest_-_Chain_Bridge_at_night.jpg/800px-Budapest_-_Chain_Bridge_at_night.jpg",
-  "Prague": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Prague_-_Hradcany_castle_at_dusk.jpg/800px-Prague_-_Hradcany_castle_at_dusk.jpg",
-  "Lisbon": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Lisboa-Alfama-panorama.jpg/800px-Lisboa-Alfama-panorama.jpg",
-  "Auckland": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Auckland_Sky_Tower_Panorama.jpg/800px-Auckland_Sky_Tower_Panorama.jpg",
-  "Dublin": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/Dublin_-_River_Liffey_panorama.jpg/800px-Dublin_-_River_Liffey_panorama.jpg",
-  "Reykjavik": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Reykjavik_in_the_evening.jpg/800px-Reykjavik_in_the_evening.jpg",
-  "Almaty": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Almaty_Kazakhstan_skyline.jpg/800px-Almaty_Kazakhstan_skyline.jpg",
-  "Kuala Lumpur": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Kuala_Lumpur_Skyline_2018.jpg/800px-Kuala_Lumpur_Skyline_2018.jpg",
-  // Small Towns — using regional/scenic photos
-  "Surgoinsville": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Clinch_Mountain_Tennessee.jpg/800px-Clinch_Mountain_Tennessee.jpg",
-  "Moab": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Arches_National_Park_-_Moab_Utah.jpg/800px-Arches_National_Park_-_Moab_Utah.jpg",
-  "Deadwood": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Deadwood_South_Dakota.jpg/800px-Deadwood_South_Dakota.jpg",
-  "Tombstone": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Tombstone_Arizona.jpg/800px-Tombstone_Arizona.jpg",
-  "Dodge City": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Dodge_City_Kansas.jpg/800px-Dodge_City_Kansas.jpg",
-  "Gettysburg": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Gettysburg_battlefield.jpg/800px-Gettysburg_battlefield.jpg",
-  "Marfa": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Marfa_Texas.jpg/800px-Marfa_Texas.jpg",
-  "Kodiak": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Kodiak_Alaska.jpg/800px-Kodiak_Alaska.jpg",
-  "Sitka": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Sitka_Alaska.jpg/800px-Sitka_Alaska.jpg",
-  "Nome": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Nome_Alaska.jpg/800px-Nome_Alaska.jpg",
-  "Ketchikan": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Ketchikan_Alaska.jpg/800px-Ketchikan_Alaska.jpg",
-  "Santa Fe": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Santa_Fe_New_Mexico.jpg/800px-Santa_Fe_New_Mexico.jpg",
-  "Gallup": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/AlbuquerqueSkylineHotAirBalloons.jpg/800px-AlbuquerqueSkylineHotAirBalloons.jpg",
-  "Laramie": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Cheyenne_Wyoming_skyline.jpg/800px-Cheyenne_Wyoming_skyline.jpg",
-  "Cody": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Cheyenne_Wyoming_skyline.jpg/800px-Cheyenne_Wyoming_skyline.jpg",
-  "Elko": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Reno_skyline.jpg/800px-Reno_skyline.jpg",
-  "Las Vegas": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Las_Vegas_at_night_1.jpg/800px-Las_Vegas_at_night_1.jpg",
-};
-
-// Fallback by region if no exact match
-function getPhoto(cityName, state) {
-  if (PHOTO_MAP[cityName]) return PHOTO_MAP[cityName];
-  // Regional fallbacks
-  const southernStates = ["TN","KY","VA","WV","NC","GA","AL","MS","AR","SC"];
-  const westernStates = ["MT","WY","ID","ND","SD","NE","KS","CO","UT","AZ","NM","NV"];
-  const pacificStates = ["CA","OR","WA","AK","HI"];
-  if (southernStates.includes(state)) return "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Clinch_Mountain_Tennessee.jpg/800px-Clinch_Mountain_Tennessee.jpg";
-  if (westernStates.includes(state)) return "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Arches_National_Park_-_Moab_Utah.jpg/800px-Arches_National_Park_-_Moab_Utah.jpg";
-  if (pacificStates.includes(state)) return "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/GoldenGateBridge-001.jpg/800px-GoldenGateBridge-001.jpg";
-  return "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Columbus_Ohio_downtown_skyline.jpg/800px-Columbus_Ohio_downtown_skyline.jpg";
+function wikiImg(article, width = 800) {
+  return `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(article)}`;
 }
 
+// Map city names to their Wikipedia article titles for accurate photos
+const WIKI_ARTICLES = {
+  // US Major Cities
+  "New York|NY": "New_York_City",
+  "Los Angeles|CA": "Los_Angeles",
+  "Chicago|IL": "Chicago",
+  "Houston|TX": "Houston",
+  "Phoenix|AZ": "Phoenix,_Arizona",
+  "Philadelphia|PA": "Philadelphia",
+  "San Antonio|TX": "San_Antonio",
+  "San Diego|CA": "San_Diego",
+  "Dallas|TX": "Dallas",
+  "San Jose|CA": "San_Jose,_California",
+  "Austin|TX": "Austin,_Texas",
+  "Jacksonville|FL": "Jacksonville,_Florida",
+  "Fort Worth|TX": "Fort_Worth,_Texas",
+  "Columbus|OH": "Columbus,_Ohio",
+  "Charlotte|NC": "Charlotte,_North_Carolina",
+  "Indianapolis|IN": "Indianapolis",
+  "San Francisco|CA": "San_Francisco",
+  "Seattle|WA": "Seattle",
+  "Denver|CO": "Denver",
+  "Nashville|TN": "Nashville,_Tennessee",
+  "Oklahoma City|OK": "Oklahoma_City",
+  "El Paso|TX": "El_Paso,_Texas",
+  "Washington|DC": "Washington,_D.C.",
+  "Boston|MA": "Boston",
+  "Memphis|TN": "Memphis,_Tennessee",
+  "Louisville|KY": "Louisville,_Kentucky",
+  "Portland|OR": "Portland,_Oregon",
+  "Las Vegas|NV": "Las_Vegas",
+  "Milwaukee|WI": "Milwaukee",
+  "Albuquerque|NM": "Albuquerque,_New_Mexico",
+  "Tucson|AZ": "Tucson,_Arizona",
+  "Fresno|CA": "Fresno,_California",
+  "Sacramento|CA": "Sacramento,_California",
+  "Kansas City|MO": "Kansas_City,_Missouri",
+  "Mesa|AZ": "Mesa,_Arizona",
+  "Atlanta|GA": "Atlanta",
+  "Omaha|NE": "Omaha,_Nebraska",
+  "Colorado Springs|CO": "Colorado_Springs,_Colorado",
+  "Raleigh|NC": "Raleigh,_North_Carolina",
+  "Long Beach|CA": "Long_Beach,_California",
+  "Virginia Beach|VA": "Virginia_Beach,_Virginia",
+  "Minneapolis|MN": "Minneapolis",
+  "Tampa|FL": "Tampa,_Florida",
+  "New Orleans|LA": "New_Orleans",
+  "Arlington|TX": "Arlington,_Texas",
+  "Honolulu|HI": "Honolulu",
+  "Aurora|CO": "Aurora,_Colorado",
+  "Corpus Christi|TX": "Corpus_Christi,_Texas",
+  "Riverside|CA": "Riverside,_California",
+  "Lexington|KY": "Lexington,_Kentucky",
+  "St. Louis|MO": "St._Louis",
+  "Pittsburgh|PA": "Pittsburgh",
+  "Cincinnati|OH": "Cincinnati",
+  "St. Paul|MN": "Saint_Paul,_Minnesota",
+  "Greensboro|NC": "Greensboro,_North_Carolina",
+  "Toledo|OH": "Toledo,_Ohio",
+  "Henderson|NV": "Henderson,_Nevada",
+  "Orlando|FL": "Orlando,_Florida",
+  "Madison|WI": "Madison,_Wisconsin",
+  "Durham|NC": "Durham,_North_Carolina",
+  "Reno|NV": "Reno,_Nevada",
+  "Baton Rouge|LA": "Baton_Rouge,_Louisiana",
+  "Irvine|CA": "Irvine,_California",
+  "Scottsdale|AZ": "Scottsdale,_Arizona",
+  "Fremont|CA": "Fremont,_California",
+  "Gilbert|AZ": "Gilbert,_Arizona",
+  "Birmingham|AL": "Birmingham,_Alabama",
+  "Richmond|VA": "Richmond,_Virginia",
+  "Spokane|WA": "Spokane,_Washington",
+  "Des Moines|IA": "Des_Moines,_Iowa",
+  "Huntsville|AL": "Huntsville,_Alabama",
+  "Salt Lake City|UT": "Salt_Lake_City",
+  "Tallahassee|FL": "Tallahassee,_Florida",
+  "Chattanooga|TN": "Chattanooga,_Tennessee",
+  "Fort Lauderdale|FL": "Fort_Lauderdale,_Florida",
+  "Cape Coral|FL": "Cape_Coral,_Florida",
+  "Eugene|OR": "Eugene,_Oregon",
+  "Vancouver|WA": "Vancouver,_Washington",
+  "Sioux Falls|SD": "Sioux_Falls,_South_Dakota",
+  "McKinney|TX": "McKinney,_Texas",
+  "Frisco|TX": "Frisco,_Texas",
+  // State Capitals (ones not already above)
+  "Montgomery|AL": "Montgomery,_Alabama",
+  "Juneau|AK": "Juneau,_Alaska",
+  "Little Rock|AR": "Little_Rock,_Arkansas",
+  "Hartford|CT": "Hartford,_Connecticut",
+  "Dover|DE": "Dover,_Delaware",
+  "Boise|ID": "Boise,_Idaho",
+  "Springfield|IL": "Springfield,_Illinois",
+  "Topeka|KS": "Topeka,_Kansas",
+  "Frankfort|KY": "Frankfort,_Kentucky",
+  "Augusta|ME": "Augusta,_Maine",
+  "Annapolis|MD": "Annapolis,_Maryland",
+  "Lansing|MI": "Lansing,_Michigan",
+  "Jackson|MS": "Jackson,_Mississippi",
+  "Jefferson City|MO": "Jefferson_City,_Missouri",
+  "Helena|MT": "Helena,_Montana",
+  "Lincoln|NE": "Lincoln,_Nebraska",
+  "Carson City|NV": "Carson_City,_Nevada",
+  "Concord|NH": "Concord,_New_Hampshire",
+  "Trenton|NJ": "Trenton,_New_Jersey",
+  "Santa Fe|NM": "Santa_Fe,_New_Mexico",
+  "Albany|NY": "Albany,_New_York",
+  "Bismarck|ND": "Bismarck,_North_Dakota",
+  "Salem|OR": "Salem,_Oregon",
+  "Harrisburg|PA": "Harrisburg,_Pennsylvania",
+  "Providence|RI": "Providence,_Rhode_Island",
+  "Columbia|SC": "Columbia,_South_Carolina",
+  "Pierre|SD": "Pierre,_South_Dakota",
+  "Montpelier|VT": "Montpelier,_Vermont",
+  "Olympia|WA": "Olympia,_Washington",
+  "Charleston|WV": "Charleston,_West_Virginia",
+  "Cheyenne|WY": "Cheyenne,_Wyoming",
+  // Small Towns
+  "Surgoinsville|TN": "Surgoinsville,_Tennessee",
+  "Cookeville|TN": "Cookeville,_Tennessee",
+  "Greeneville|TN": "Greeneville,_Tennessee",
+  "Elizabethton|TN": "Elizabethton,_Tennessee",
+  "Rogersville|TN": "Rogersville,_Tennessee",
+  "Erwin|TN": "Erwin,_Tennessee",
+  "Sweetwater|TN": "Sweetwater,_Tennessee",
+  "Dayton|TN": "Dayton,_Tennessee",
+  "Waverly|TN": "Waverly,_Tennessee",
+  "Lexington|TN": "Lexington,_Tennessee",
+  "Truth or Consequences|NM": "Truth_or_Consequences,_New_Mexico",
+  "Valentine|TX": "Valentine,_Texas",
+  "Boring|OR": "Boring,_Oregon",
+  "Peculiar|MO": "Peculiar,_Missouri",
+  "Sandwich|MA": "Sandwich,_Massachusetts",
+  "Tuba City|AZ": "Tuba_City,_Arizona",
+  "Wisdom|MT": "Wisdom,_Montana",
+  "Cut and Shoot|TX": "Cut_and_Shoot,_Texas",
+  "Why|AZ": "Why,_Arizona",
+  "Halfway|OR": "Halfway,_Oregon",
+  "Happy|TX": "Happy,_Texas",
+  "Zigzag|OR": "Zigzag,_Oregon",
+  "Climax|MI": "Climax,_Michigan",
+  "Uncertain|TX": "Uncertain,_Texas",
+  "Embarrass|MN": "Embarrass,_Minnesota",
+  "Intercourse|PA": "Intercourse,_Pennsylvania",
+  "Hooker|OK": "Hooker,_Oklahoma",
+  "Dinosaur|CO": "Dinosaur,_Colorado",
+  "Nimrod|MN": "Nimrod,_Minnesota",
+  "Santa Claus|IN": "Santa_Claus,_Indiana",
+  "Bat Cave|NC": "Bat_Cave,_North_Carolina",
+  "Lick Fork|VA": "Lick_Fork,_Virginia",
+  "Nothing|AZ": "Nothing,_Arizona",
+  "Whynot|NC": "Whynot,_North_Carolina",
+  "Okay|OK": "Okay,_Oklahoma",
+  "Ding Dong|TX": "Ding_Dong,_Texas",
+  "Frostproof|FL": "Frostproof,_Florida",
+  "Oatmeal|TX": "Oatmeal,_Texas",
+  "Cheesequake|NJ": "Cheesequake,_New_Jersey",
+  "Accident|MD": "Accident,_Maryland",
+  "Defeated|TN": "Defeated,_Tennessee",
+  "Deadwood|SD": "Deadwood,_South_Dakota",
+  "Tombstone|AZ": "Tombstone,_Arizona",
+  "Dodge City|KS": "Dodge_City,_Kansas",
+  "Gettysburg|PA": "Gettysburg,_Pennsylvania",
+  "Cody|WY": "Cody,_Wyoming",
+  "Laramie|WY": "Laramie,_Wyoming",
+  "Lander|WY": "Lander,_Wyoming",
+  "Thermopolis|WY": "Thermopolis,_Wyoming",
+  "Marfa|TX": "Marfa,_Texas",
+  "Alpine|TX": "Alpine,_Texas",
+  "Fort Stockton|TX": "Fort_Stockton,_Texas",
+  "Presidio|TX": "Presidio,_Texas",
+  "Del Rio|TX": "Del_Rio,_Texas",
+  "Moab|UT": "Moab,_Utah",
+  "Kanab|UT": "Kanab,_Utah",
+  "Page|AZ": "Page,_Arizona",
+  "Winslow|AZ": "Winslow,_Arizona",
+  "Show Low|AZ": "Show_Low,_Arizona",
+  "Silver City|NM": "Silver_City,_New_Mexico",
+  "Ruidoso|NM": "Ruidoso,_New_Mexico",
+  "Gallup|NM": "Gallup,_New_Mexico",
+  "Kodiak|AK": "Kodiak,_Alaska",
+  "Sitka|AK": "Sitka,_Alaska",
+  "Nome|AK": "Nome,_Alaska",
+  "Barrow|AK": "Utqiagvik,_Alaska",
+  "Ketchikan|AK": "Ketchikan,_Alaska",
+  "Unalaska|AK": "Unalaska,_Alaska",
+  "Calais|ME": "Calais,_Maine",
+  "Eastport|ME": "Eastport,_Maine",
+  "Marathon|FL": "Marathon,_Florida",
+  "Islamorada|FL": "Islamorada,_Florida",
+  "Limon|CO": "Limon,_Colorado",
+  "Havre|MT": "Havre,_Montana",
+  "Miles City|MT": "Miles_City,_Montana",
+  "Plentywood|MT": "Plentywood,_Montana",
+  "Wolf Point|MT": "Wolf_Point,_Montana",
+  "Devils Lake|ND": "Devils_Lake,_North_Dakota",
+  "Williston|ND": "Williston,_North_Dakota",
+  "Dickinson|ND": "Dickinson,_North_Dakota",
+  "Huron|SD": "Huron,_South_Dakota",
+  "Mitchell|SD": "Mitchell,_South_Dakota",
+  "Winner|SD": "Winner,_South_Dakota",
+  "Alliance|NE": "Alliance,_Nebraska",
+  "Scottsbluff|NE": "Scottsbluff,_Nebraska",
+  "McCook|NE": "McCook,_Nebraska",
+  "Garden City|KS": "Garden_City,_Kansas",
+  "Liberal|KS": "Liberal,_Kansas",
+  "Colby|KS": "Colby,_Kansas",
+  "Goodland|KS": "Goodland,_Kansas",
+  "Elko|NV": "Elko,_Nevada",
+  "Winnemucca|NV": "Winnemucca,_Nevada",
+  "Ely|NV": "Ely,_Nevada",
+  "Fallon|NV": "Fallon,_Nevada",
+  "Yerington|NV": "Yerington,_Nevada",
+  "Tonopah|NV": "Tonopah,_Nevada",
+  "Bishop|CA": "Bishop,_California",
+  "Mammoth Lakes|CA": "Mammoth_Lakes,_California",
+  "Weed|CA": "Weed,_California",
+  "Alturas|CA": "Alturas,_California",
+  "Fort Bragg|CA": "Fort_Bragg,_California",
+  "Astoria|OR": "Astoria,_Oregon",
+  "Klamath Falls|OR": "Klamath_Falls,_Oregon",
+  "Burns|OR": "Burns,_Oregon",
+  "Lakeview|OR": "Lakeview,_Oregon",
+  "Winthrop|WA": "Winthrop,_Washington",
+  "Colville|WA": "Colville,_Washington",
+  "Republic|WA": "Republic,_Washington",
+  "Grundy|VA": "Grundy,_Virginia",
+  "Pocahontas|VA": "Pocahontas,_Virginia",
+  "Richlands|VA": "Richlands,_Virginia",
+  "Harlan|KY": "Harlan,_Kentucky",
+  "Hazard|KY": "Hazard,_Kentucky",
+  "Pikeville|KY": "Pikeville,_Kentucky",
+  "Paintsville|KY": "Paintsville,_Kentucky",
+  "Prestonsburg|KY": "Prestonsburg,_Kentucky",
+  "Williamson|WV": "Williamson,_West_Virginia",
+  "Mullens|WV": "Mullens,_West_Virginia",
+  "Welch|WV": "Welch,_West_Virginia",
+  "Bryson City|NC": "Bryson_City,_North_Carolina",
+  "Sylva|NC": "Sylva,_North_Carolina",
+  "Murphy|NC": "Murphy,_North_Carolina",
+  "Clayton|GA": "Clayton,_Georgia",
+  "Blue Ridge|GA": "Blue_Ridge,_Georgia",
+  "Helen|GA": "Helen,_Georgia",
+  "Dahlonega|GA": "Dahlonega,_Georgia",
+  // World Cities
+  "Tokyo|Japan": "Tokyo",
+  "Delhi|India": "Delhi",
+  "Shanghai|China": "Shanghai",
+  "Sao Paulo|Brazil": "São_Paulo",
+  "Mexico City|Mexico": "Mexico_City",
+  "Cairo|Egypt": "Cairo",
+  "Mumbai|India": "Mumbai",
+  "Beijing|China": "Beijing",
+  "Osaka|Japan": "Osaka",
+  "Karachi|Pakistan": "Karachi",
+  "Istanbul|Turkey": "Istanbul",
+  "Lagos|Nigeria": "Lagos",
+  "Buenos Aires|Argentina": "Buenos_Aires",
+  "Kolkata|India": "Kolkata",
+  "Manila|Philippines": "Manila",
+  "Rio de Janeiro|Brazil": "Rio_de_Janeiro",
+  "Guangzhou|China": "Guangzhou",
+  "Shenzhen|China": "Shenzhen",
+  "Lahore|Pakistan": "Lahore",
+  "Moscow|Russia": "Moscow",
+  "Paris|France": "Paris",
+  "London|UK": "London",
+  "Bangkok|Thailand": "Bangkok",
+  "Lima|Peru": "Lima",
+  "Bangalore|India": "Bangalore",
+  "Bogota|Colombia": "Bogotá",
+  "Jakarta|Indonesia": "Jakarta",
+  "Tehran|Iran": "Tehran",
+  "Johannesburg|South Africa": "Johannesburg",
+  "Baghdad|Iraq": "Baghdad",
+  "Santiago|Chile": "Santiago",
+  "Riyadh|Saudi Arabia": "Riyadh",
+  "Singapore|Singapore": "Singapore",
+  "Dar es Salaam|Tanzania": "Dar_es_Salaam",
+  "Hanoi|Vietnam": "Hanoi",
+  "Barcelona|Spain": "Barcelona",
+  "Cape Town|South Africa": "Cape_Town",
+  "Nairobi|Kenya": "Nairobi",
+  "Accra|Ghana": "Accra",
+  "Madrid|Spain": "Madrid",
+  "Berlin|Germany": "Berlin",
+  "Rome|Italy": "Rome",
+  "Sydney|Australia": "Sydney",
+  "Melbourne|Australia": "Melbourne",
+  "Toronto|Canada": "Toronto",
+  "Seoul|South Korea": "Seoul",
+  "Dubai|UAE": "Dubai",
+  "Amman|Jordan": "Amman",
+  "Havana|Cuba": "Havana",
+  "Oslo|Norway": "Oslo",
+  "Stockholm|Sweden": "Stockholm",
+  "Amsterdam|Netherlands": "Amsterdam",
+  "Vienna|Austria": "Vienna",
+  "Warsaw|Poland": "Warsaw",
+  "Budapest|Hungary": "Budapest",
+  "Prague|Czech Republic": "Prague",
+  "Lisbon|Portugal": "Lisbon",
+  "Auckland|New Zealand": "Auckland",
+  "Dublin|Ireland": "Dublin",
+  "Reykjavik|Iceland": "Reykjavik",
+  "Almaty|Kazakhstan": "Almaty",
+  "Kuala Lumpur|Malaysia": "Kuala_Lumpur",
+};
+
+// ─── IMAGE CACHE & FETCHER ──────────────────────────────────────────
+// Fetches actual thumbnail URL from Wikipedia REST API, caches in memory
+const imageCache = {};
+const PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600'%3E%3Crect fill='%23111827' width='800' height='600'/%3E%3Ctext x='400' y='300' text-anchor='middle' fill='%23334155' font-size='48' font-family='sans-serif'%3E🏙%3C/text%3E%3C/svg%3E";
+
+function getCityKey(city) {
+  return `${city.name}|${city.state || city.country}`;
+}
+
+function getWikiArticle(city) {
+  const key = getCityKey(city);
+  if (WIKI_ARTICLES[key]) return WIKI_ARTICLES[key];
+  // Fallback: try to construct a reasonable article name
+  if (city.state) return `${city.name.replace(/ /g, '_')},_${getStateName(city.state)}`;
+  if (city.country) return city.name.replace(/ /g, '_');
+  return city.name.replace(/ /g, '_');
+}
+
+const STATE_NAMES = {
+  AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",
+  CT:"Connecticut",DE:"Delaware",DC:"District_of_Columbia",FL:"Florida",GA:"Georgia",
+  HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",
+  LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",
+  MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New_Hampshire",
+  NJ:"New_Jersey",NM:"New_Mexico",NY:"New_York",NC:"North_Carolina",ND:"North_Dakota",
+  OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode_Island",SC:"South_Carolina",
+  SD:"South_Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",
+  WA:"Washington",WV:"West_Virginia",WI:"Wisconsin",WY:"Wyoming"
+};
+
+function getStateName(code) {
+  return STATE_NAMES[code] || code;
+}
+
+async function fetchCityImage(city) {
+  const key = getCityKey(city);
+  if (imageCache[key]) return imageCache[key];
+
+  const article = getWikiArticle(city);
+  try {
+    const resp = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(article)}`);
+    if (resp.ok) {
+      const data = await resp.json();
+      const url = data.thumbnail?.source || data.originalimage?.source;
+      if (url) {
+        // Get a higher-res version by modifying the thumb width
+        const hiRes = url.replace(/\/\d+px-/, '/800px-');
+        imageCache[key] = hiRes;
+        return hiRes;
+      }
+    }
+  } catch (e) {
+    console.warn(`Failed to fetch image for ${city.name}:`, e);
+  }
+
+  // Fallback: try without state disambiguation
+  if (city.state || city.country) {
+    try {
+      const resp2 = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(city.name.replace(/ /g, '_'))}`);
+      if (resp2.ok) {
+        const data2 = await resp2.json();
+        const url2 = data2.thumbnail?.source || data2.originalimage?.source;
+        if (url2) {
+          const hiRes2 = url2.replace(/\/\d+px-/, '/800px-');
+          imageCache[key] = hiRes2;
+          return hiRes2;
+        }
+      }
+    } catch {}
+  }
+
+  imageCache[key] = PLACEHOLDER;
+  return PLACEHOLDER;
+}
+
+// ─── Preload hook ────────────────────────────────────────────────────
+function useCityImage(city) {
+  const [src, setSrc] = useState(() => {
+    const key = city ? getCityKey(city) : null;
+    return (key && imageCache[key]) || PLACEHOLDER;
+  });
+
+  useEffect(() => {
+    if (!city) return;
+    let cancelled = false;
+    fetchCityImage(city).then(url => {
+      if (!cancelled) setSrc(url);
+    });
+    return () => { cancelled = true; };
+  }, [city?.name, city?.state, city?.country]);
+
+  return src;
+}
+
+// ─── DATA ────────────────────────────────────────────────────────────
 
 const CITIES_100K = [
   { name: "New York", state: "NY", pop: 8336817 },
@@ -355,7 +556,6 @@ const STATE_CAPITALS = [
 ];
 
 const SMALL_TOWNS = [
-  // Tennessee
   { name: "Surgoinsville", state: "TN", pop: 1921, special: true },
   { name: "Cookeville", state: "TN", pop: 35699 },
   { name: "Greeneville", state: "TN", pop: 15459 },
@@ -366,7 +566,6 @@ const SMALL_TOWNS = [
   { name: "Dayton", state: "TN", pop: 7191 },
   { name: "Waverly", state: "TN", pop: 4275 },
   { name: "Lexington", state: "TN", pop: 7652 },
-  // Funny/quirky names
   { name: "Truth or Consequences", state: "NM", pop: 5765 },
   { name: "Valentine", state: "TX", pop: 134 },
   { name: "Boring", state: "OR", pop: 8067 },
@@ -398,7 +597,6 @@ const SMALL_TOWNS = [
   { name: "Cheesequake", state: "NJ", pop: 6500 },
   { name: "Accident", state: "MD", pop: 325 },
   { name: "Defeated", state: "TN", pop: 123 },
-  // Historic/Western
   { name: "Deadwood", state: "SD", pop: 1270 },
   { name: "Tombstone", state: "AZ", pop: 1579 },
   { name: "Dodge City", state: "KS", pop: 27340 },
@@ -420,7 +618,6 @@ const SMALL_TOWNS = [
   { name: "Silver City", state: "NM", pop: 9990 },
   { name: "Ruidoso", state: "NM", pop: 7971 },
   { name: "Gallup", state: "NM", pop: 21678 },
-  // Alaska/Island/Remote
   { name: "Kodiak", state: "AK", pop: 5937 },
   { name: "Sitka", state: "AK", pop: 8493 },
   { name: "Nome", state: "AK", pop: 3699 },
@@ -431,7 +628,6 @@ const SMALL_TOWNS = [
   { name: "Eastport", state: "ME", pop: 1331 },
   { name: "Marathon", state: "FL", pop: 8305 },
   { name: "Islamorada", state: "FL", pop: 6370 },
-  // Plains/Midwest small
   { name: "Limon", state: "CO", pop: 1880 },
   { name: "Havre", state: "MT", pop: 9510 },
   { name: "Miles City", state: "MT", pop: 8313 },
@@ -450,7 +646,6 @@ const SMALL_TOWNS = [
   { name: "Liberal", state: "KS", pop: 19825 },
   { name: "Colby", state: "KS", pop: 5387 },
   { name: "Goodland", state: "KS", pop: 4489 },
-  // Nevada/West
   { name: "Elko", state: "NV", pop: 20332 },
   { name: "Winnemucca", state: "NV", pop: 7731 },
   { name: "Ely", state: "NV", pop: 3941 },
@@ -462,17 +657,13 @@ const SMALL_TOWNS = [
   { name: "Weed", state: "CA", pop: 2967 },
   { name: "Alturas", state: "CA", pop: 2827 },
   { name: "Fort Bragg", state: "CA", pop: 7464 },
-  // Oregon/Washington
   { name: "Astoria", state: "OR", pop: 9611 },
   { name: "Klamath Falls", state: "OR", pop: 21813 },
   { name: "Burns", state: "OR", pop: 2711 },
   { name: "Lakeview", state: "OR", pop: 2394 },
-  { name: "Halfway", state: "OR", pop: 288 },
-  { name: "Boring", state: "OR", pop: 8067 },
   { name: "Winthrop", state: "WA", pop: 442 },
   { name: "Colville", state: "WA", pop: 4673 },
   { name: "Republic", state: "WA", pop: 1073 },
-  // Appalachian/Southeast small
   { name: "Grundy", state: "VA", pop: 1057 },
   { name: "Pocahontas", state: "VA", pop: 328 },
   { name: "Richlands", state: "VA", pop: 5500 },
@@ -555,6 +746,7 @@ const WORLD_CITIES = [
   { name: "Dublin", country: "Ireland", pop: 1439000 },
   { name: "Reykjavik", country: "Iceland", pop: 233034 },
   { name: "Almaty", country: "Kazakhstan", pop: 1977000 },
+  { name: "Kuala Lumpur", country: "Malaysia", pop: 1982000 },
 ];
 
 function formatPop(n) {
@@ -562,14 +754,15 @@ function formatPop(n) {
   if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.?0+$/, "") + "K";
   return n.toLocaleString();
 }
+
 function getDataset(mode) {
   if (mode === "capitals") return STATE_CAPITALS;
   if (mode === "small") return SMALL_TOWNS;
   if (mode === "world") return WORLD_CITIES;
   return CITIES_100K;
 }
+
 function weightedPick(pool) {
-  // Surgoinsville gets ~2% extra weight as a special Easter egg
   const weights = pool.map(c => c.special ? 3 : 1);
   const total = weights.reduce((a, b) => a + b, 0);
   let rand = Math.random() * total;
@@ -589,16 +782,122 @@ function pickTwo(pool, lastPair) {
   } while ((a === b || a.pop === b.pop || (lastPair && (a === lastPair[0] || a === lastPair[1] || b === lastPair[0] || b === lastPair[1]))) && attempts < 50);
   return [a, b];
 }
+
 function getLS(k, def) { try { return localStorage.getItem(k) || def; } catch { return def; } }
-function setLS(k, v) { try { localStorage.setItem(k, v); } catch { } }
+function setLS(k, v) { try { localStorage.setItem(k, v); } catch {} }
 
 const TIMER_MAX = 12;
 const MODES = [
   { id: "cities", label: "Major Cities", sub: "US cities 100K+", icon: "🏙️" },
   { id: "capitals", label: "State Capitals", sub: "All 50 capitals", icon: "🏛️" },
-  { id: "small", label: "Small Towns", sub: "Under 25K pop", icon: "🌾" },
+  { id: "small", label: "Small Towns", sub: "Quirky & remote", icon: "🌾" },
   { id: "world", label: "World Cities", sub: "Hard Mode 🌍", icon: "🌐" },
 ];
+
+// ─── CITY CARD COMPONENT (handles async image loading) ──────────────
+function CityCard({ city, side, phase, correct, onGuess }) {
+  const imgSrc = useCityImage(city);
+  const isCorrect = phase === "reveal" && side === correct;
+  const isWrong = phase === "reveal" && side !== correct;
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgLoaded(false);
+    setImgError(false);
+  }, [imgSrc]);
+
+  // Preload
+  useEffect(() => {
+    if (!imgSrc || imgSrc === PLACEHOLDER) return;
+    const img = new Image();
+    img.onload = () => setImgLoaded(true);
+    img.onerror = () => setImgError(true);
+    img.src = imgSrc;
+  }, [imgSrc]);
+
+  const bgUrl = imgError ? PLACEHOLDER : imgSrc;
+
+  return (
+    <button
+      onClick={() => onGuess(side)}
+      disabled={phase !== "waiting"}
+      style={{
+        flex: 1, position: "relative", borderRadius: 18, overflow: "hidden",
+        border: isCorrect ? "3px solid #4ade80" : isWrong ? "3px solid #f87171" : "2px solid rgba(255,255,255,0.08)",
+        cursor: phase === "waiting" ? "pointer" : "default", padding: 0, background: "#111827",
+        boxShadow: isCorrect ? "0 0 30px rgba(74,222,128,0.4)" : isWrong ? "0 0 30px rgba(248,113,113,0.4)" : "0 4px 20px rgba(0,0,0,0.3)",
+        transition: "all 0.15s", fontFamily: "inherit",
+        transform: phase === "waiting" ? undefined : undefined,
+      }}
+    >
+      {/* Photo bg */}
+      <div style={{
+        position: "absolute", inset: 0,
+        backgroundImage: `url(${bgUrl})`,
+        backgroundSize: "cover", backgroundPosition: "center",
+        filter: isWrong ? "brightness(0.3) saturate(0.15)" : "brightness(0.55)",
+        transition: "filter 0.3s, opacity 0.4s",
+        opacity: imgLoaded || imgSrc === PLACEHOLDER ? 1 : 0.3,
+      }} />
+      {/* Loading shimmer when image not yet loaded */}
+      {!imgLoaded && imgSrc !== PLACEHOLDER && !imgError && (
+        <div style={{
+          position: "absolute", inset: 0,
+          background: "linear-gradient(110deg, #111827 30%, #1e293b 50%, #111827 70%)",
+          backgroundSize: "200% 100%",
+          animation: "shimmer 1.5s infinite",
+        }} />
+      )}
+      {/* Gradient overlay */}
+      <div style={{
+        position: "absolute", inset: 0,
+        background: isCorrect
+          ? "linear-gradient(to top, rgba(5,46,22,0.95) 0%, rgba(5,46,22,0.2) 70%, transparent 100%)"
+          : isWrong
+            ? "linear-gradient(to top, rgba(45,0,0,0.95) 0%, rgba(45,0,0,0.2) 70%, transparent 100%)"
+            : "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.15) 70%, transparent 100%)"
+      }} />
+      {/* Content */}
+      <div style={{
+        position: "relative", zIndex: 2, height: "100%",
+        display: "flex", flexDirection: "column", justifyContent: "flex-end",
+        padding: "16px 14px", alignItems: "center", textAlign: "center"
+      }}>
+        {phase === "waiting" && (
+          <div style={{
+            position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)",
+            background: "rgba(255,255,255,0.18)", borderRadius: 20, padding: "4px 12px",
+            fontSize: 9, color: "rgba(255,255,255,0.9)", letterSpacing: 2, textTransform: "uppercase",
+            backdropFilter: "blur(4px)", whiteSpace: "nowrap"
+          }}>TAP TO PICK</div>
+        )}
+        {phase === "reveal" && (
+          <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", fontSize: 28 }}>
+            {isCorrect ? "✅" : "❌"}
+          </div>
+        )}
+        <div style={{
+          fontSize: 22, fontWeight: 900, color: "#fff",
+          textShadow: "0 2px 10px rgba(0,0,0,0.9)", lineHeight: 1.15, marginBottom: 4
+        }}>{city.name}</div>
+        <div style={{
+          fontSize: 11, color: "rgba(255,255,255,0.8)", textTransform: "uppercase",
+          letterSpacing: 2, marginBottom: phase === "reveal" ? 8 : 0
+        }}>{city.country || city.state}</div>
+        {phase === "reveal" && (
+          <div style={{
+            fontSize: 26, fontWeight: 900,
+            color: isCorrect ? "#4ade80" : "#f87171",
+            textShadow: "0 2px 8px rgba(0,0,0,0.8)"
+          }}>{formatPop(city.pop)}</div>
+        )}
+      </div>
+    </button>
+  );
+}
+
+// ─── MAIN COMPONENT ──────────────────────────────────────────────────
 
 const DARK = { bg: "#0a0e1a", text: "#e8eaf0", subtext: "#6677aa", card: "#111827", cardActive: "#0f1e30", border: "#1e2840" };
 const LIGHT = { bg: "#f0f4f8", text: "#0a0e1a", subtext: "#4a5568", card: "#ffffff", cardActive: "#e8f4fd", border: "#d1dce8" };
@@ -629,6 +928,12 @@ export default function CityStack() {
   const [gamesPlayed, setGamesPlayed] = useState(0);
   const d = darkMode ? DARK : LIGHT;
 
+  // Preload next pair's images
+  const preloadPair = useCallback((p) => {
+    if (!p) return;
+    p.forEach(city => fetchCityImage(city));
+  }, []);
+
   async function fetchBoard(filter) {
     setBoardLoading(true);
     try {
@@ -639,7 +944,7 @@ export default function CityStack() {
       if (filter === "monthly") q = q.gte("created_at", new Date(now - 2592000000).toISOString());
       const { data } = await q;
       setBoard(data || []);
-    } catch { }
+    } catch {}
     setBoardLoading(false);
   }
 
@@ -649,14 +954,14 @@ export default function CityStack() {
       const { count } = await supabase.from("scores").select("*", { count: "exact", head: true });
       setTopScore(top?.[0]?.score ?? 0);
       setGamesPlayed(count ?? 0);
-    } catch { }
+    } catch {}
   }
 
   useEffect(() => { fetchHomeStats(); }, []);
   useEffect(() => { if (screen === "leaderboard") fetchBoard(leaderFilter); }, [screen, leaderFilter]);
 
   async function pushScore(user, sc, md) {
-    try { await supabase.from("scores").insert({ username: user, score: sc, mode: md }); } catch { }
+    try { await supabase.from("scores").insert({ username: user, score: sc, mode: md }); } catch {}
   }
 
   useEffect(() => {
@@ -685,6 +990,7 @@ export default function CityStack() {
     clearInterval(timerRef.current);
     const pool = getDataset(m || mode);
     const p = pickTwo(pool, null);
+    preloadPair(p);
     scoreRef.current = 0;
     streakRef.current = 0;
     setPair(p); setLastPair(p); setScore(0); setSessionStreak(0);
@@ -706,9 +1012,11 @@ export default function CityStack() {
       const best = Math.max(parseInt(getLS("cs_streak", "0")), streakRef.current);
       setLS("cs_streak", String(best));
       setAllTimeStreak(best);
+      // Preload next pair
+      const nextP = pickTwo(getDataset(mode), lastPair);
+      preloadPair(nextP);
       nextRef.current = setTimeout(() => {
-        const p = pickTwo(getDataset(mode), lastPair);
-        setPair(p); setLastPair(p); setPhase("waiting"); setCorrect(null);
+        setPair(nextP); setLastPair(nextP); setPhase("waiting"); setCorrect(null);
       }, 1400);
     } else {
       nextRef.current = setTimeout(() => doEndGame(), 1400);
@@ -728,6 +1036,13 @@ export default function CityStack() {
 
   return (
     <div style={{ minHeight: "100vh", background: d.bg, color: d.text, fontFamily: "'Space Grotesk','Segoe UI',sans-serif", overflowX: "hidden" }}>
+      {/* Shimmer animation */}
+      <style>{`
+        @keyframes shimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+      `}</style>
 
       {screen !== "play" && (
         <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 24px", borderBottom: `1px solid ${d.border}`, position: "sticky", top: 0, background: d.bg, zIndex: 20 }}>
@@ -798,35 +1113,13 @@ export default function CityStack() {
           <div style={{ color: timerColor, fontFamily: "monospace", fontSize: 12, textAlign: "right", padding: "2px 16px 0", flexShrink: 0 }}>{timer}s</div>
           <div style={{ textAlign: "center", color: d.subtext, fontSize: 12, letterSpacing: 1, textTransform: "uppercase", padding: "10px 20px 6px", flexShrink: 0 }}>Which city has a larger population?</div>
 
-          {/* CARDS — SIDE BY SIDE HORIZONTAL */}
+          {/* CARDS */}
           <div style={{ flex: 1, display: "flex", flexDirection: "row", gap: 10, padding: "6px 12px 12px", minHeight: 0 }}>
-            {[pair[0], pair[1]].map((city, i) => {
-              const side = i === 0 ? "left" : "right";
-              const isCorrect = phase === "reveal" && side === correct;
-              const isWrong = phase === "reveal" && side !== correct;
-              return (
-                <button key={i} onClick={() => handleGuess(side)} disabled={phase !== "waiting"}
-                  style={{ flex: 1, position: "relative", borderRadius: 18, overflow: "hidden", border: isCorrect ? "3px solid #4ade80" : isWrong ? "3px solid #f87171" : `2px solid ${d.border}`, cursor: phase === "waiting" ? "pointer" : "default", padding: 0, background: "transparent", boxShadow: isCorrect ? "0 0 30px rgba(74,222,128,0.4)" : isWrong ? "0 0 30px rgba(248,113,113,0.4)" : "0 4px 20px rgba(0,0,0,0.3)", transition: "all 0.15s" }}>
-                  {/* Photo bg */}
-                  <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${getPhoto(city.name, city.state || city.country)})`, backgroundSize: "cover", backgroundPosition: "center", filter: isWrong ? "brightness(0.35) saturate(0.2)" : "brightness(0.5)", transition: "filter 0.3s" }} />
-                  {/* Gradient */}
-                  <div style={{ position: "absolute", inset: 0, background: isCorrect ? "linear-gradient(to top, rgba(5,46,22,0.95) 0%, rgba(5,46,22,0.2) 70%, transparent 100%)" : isWrong ? "linear-gradient(to top, rgba(45,0,0,0.95) 0%, rgba(45,0,0,0.2) 70%, transparent 100%)" : "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.15) 70%, transparent 100%)" }} />
-                  {/* Content */}
-                  <div style={{ position: "relative", zIndex: 2, height: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: "16px 14px", alignItems: "center", textAlign: "center" }}>
-                    {phase === "waiting" && (
-                      <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", background: "rgba(255,255,255,0.18)", borderRadius: 20, padding: "4px 12px", fontSize: 9, color: "rgba(255,255,255,0.9)", letterSpacing: 2, textTransform: "uppercase", backdropFilter: "blur(4px)", whiteSpace: "nowrap" }}>TAP TO PICK</div>
-                    )}
-                    {phase === "reveal" && <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", fontSize: 28 }}>{isCorrect ? "✅" : "❌"}</div>}
-                    <div style={{ fontSize: 22, fontWeight: 900, color: "#fff", textShadow: "0 2px 10px rgba(0,0,0,0.9)", lineHeight: 1.15, marginBottom: 4 }}>{city.name}</div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", textTransform: "uppercase", letterSpacing: 2, marginBottom: phase === "reveal" ? 8 : 0 }}>{city.country || city.state}</div>
-                    {phase === "reveal" && <div style={{ fontSize: 26, fontWeight: 900, color: isCorrect ? "#4ade80" : "#f87171", textShadow: "0 2px 8px rgba(0,0,0,0.8)" }}>{formatPop(city.pop)}</div>}
-                  </div>
-                </button>
-              );
-            })}
+            <CityCard city={pair[0]} side="left" phase={phase} correct={correct} onGuess={handleGuess} />
+            <CityCard city={pair[1]} side="right" phase={phase} correct={correct} onGuess={handleGuess} />
           </div>
 
-          {/* VS badge — centered between cards */}
+          {/* VS badge */}
           <div style={{ position: "fixed", left: "50%", top: "52%", transform: "translate(-50%,-50%)", background: d.card, border: `2px solid ${d.border}`, borderRadius: "50%", width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 12, color: d.subtext, pointerEvents: "none", zIndex: 15, boxShadow: "0 2px 12px rgba(0,0,0,0.5)" }}>VS</div>
 
           <div style={{ textAlign: "center", color: d.subtext, fontSize: 10, letterSpacing: 2, textTransform: "uppercase", padding: "4px 0 10px", flexShrink: 0 }}>{MODES.find(m => m.id === mode)?.label}</div>
@@ -894,7 +1187,8 @@ export default function CityStack() {
             <div style={{ background: darkMode ? "#0a0e1a" : "#f0f4f8", borderRadius: 10, padding: "14px 16px", fontSize: 12, color: d.subtext, lineHeight: 1.8 }}>
               <strong>✅ Verified Data Sources</strong><br />
               🇺🇸 US cities: U.S. Census Bureau Population Estimates Program<br />
-              🌍 World cities: UN World Urbanization Prospects / GeoNames.org
+              🌍 World cities: UN World Urbanization Prospects / GeoNames.org<br />
+              📷 Photos: Wikipedia (live from REST API)
             </div>
           </div>
           <button style={secBtn} onClick={() => setScreen("home")}>← Back</button>
