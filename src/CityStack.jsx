@@ -285,7 +285,7 @@ const WORLD_CITIES = [
   { name: "Dar es Salaam", country: "Tanzania", pop: 7405000 },
   { name: "Hanoi", country: "Vietnam", pop: 5253000 },
   { name: "Barcelona", country: "Spain", pop: 5687000 },
-  { name:: "Cape Town", country: "South Africa", pop: 4618000 },
+  { name: "Cape Town", country: "South Africa", pop: 4618000 },
   { name: "Nairobi", country: "Kenya", pop: 5118000 },
   { name: "Addis Ababa", country: "Ethiopia", pop: 5006000 },
   { name: "Accra", country: "Ghana", pop: 3630000 },
